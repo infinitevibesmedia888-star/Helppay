@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HelpPay - Domestic Staff Payroll & Society Ledger</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --secondary: #3b82f6;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f1f5f9; color: var(--dark); padding: 10px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
+        header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 20px; text-align: center; }
+        header h1 { font-size: 1.5rem; margin-bottom: 5px; }
+        header p { font-size: 0.85rem; opacity: 0.9; }
+        .nav-tabs { display: flex; background: #e2e8f0; }
+        .nav-tab { flex: 1; padding: 12px; text-align: center; font-weight: 600; font-size: 0.85rem; cursor: pointer; border: none; background: none; color: #64748b; transition: 0.2s; }
+        .nav-tab.active { background: white; color: var(--primary-dark); border-bottom: 3px solid var(--primary); }
+        .tab-content { display: none; padding: 20px; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 5px; color: #475569; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; }
+        button.btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        button.btn:hover { background: var(--primary-dark); }
+        .staff-card { background: var(--light); border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .staff-info h4 { font-size: 0.95rem; color: var(--dark); }
+        .staff-info p { font-size: 0.8rem; color: #64748b; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+        .badge-active { background: #d1fae5; color: #065f46; }
+        .badge-inactive { background: #fee2e2; color: #991b1b; }
+        .receipt-preview { background: white; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 15px; margin-top: 15px; }
+        .receipt-header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px; }
+        .total-row { font-weight: bold; border-top: 1px solid #cbd5e1; padding-top: 8px; margin-top: 8px; }
+        .qr-box { text-align: center; margin: 15px 0; }
+        .qr-box img { max-width: 150px; border-radius: 8px; }
+        .admin-actions { background: #fef3c7; border: 1px solid #f59e0b; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>HelpPay</h1>
+        <p>Gated Community Domestic Staff Payroll & Ledger</p>
+    </header>
+
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('payroll')">Payroll & Slip</button>
+        <button class="nav-tab" onclick="switchTab('staff')">Staff Directory</button>
+        <button class="nav-tab" onclick="switchTab('society')">Society Ledger</button>
+        <button class="nav-tab" onclick="switchTab('admin')">Admin</button>
+    </div>
+
+    <!-- TAB 1: PAYROLL -->
+    <div id="payroll" class="tab-content active">
+        <div class="form-group">
+            <label>Select Staff Member</label>
+            <select id="payStaffSelect" onchange="loadStaffPayrollDetails()">
+                <option value="">-- Choose Staff --</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Select Month & Year</label>
+            <input type="month" id="payMonth" value="2026-10">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1;">
+                <label>Total Days in Month</label>
+                <input type="number" id="totalDays" value="30" oninput="calculateNetPay()">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Days Worked</label>
+                <input type="number" id="daysWorked" value="30" oninput="calculateNetPay()">
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1;">
+                <label>Monthly Base Salary (₹)</label>
+                <input type="number" id="baseSalary" value="0" oninput="calculateNetPay()">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Bonus / Advance Adjustment (₹)</label>
+                <input type="number" id="bonusAdj" value="0" oninput="calculateNetPay()">
+            </div>
+        </div>
+        <button class="btn" onclick="generateReceipt()">Generate Salary Slip</button>
+
+        <div id="receiptContainer" style="display: none;">
+            <div class="receipt-preview" id="captureReceipt">
+                <div class="receipt-header">
+                    <h3>HELP-PAY SALARY SLIP</h3>
+                    <p id="recSociety">Gated Community, Hyderabad</p>
+                    <p style="font-size: 0.75rem; color: #64748b;" id="recDateRange"></p>
+                </div>
+                <div class="receipt-row"><span>Staff Name:</span><strong id="recName">-</strong></div>
+                <div class="receipt-row"><span>Role:</span><span id="recRole">-</span></div>
+                <div class="receipt-row"><span>Phone:</span><span id="recPhone">-</span></div>
+                <div class="receipt-row"><span>Attendance:</span><span id="recAttendance">-</span></div>
+                <div class="receipt-row"><span>Base Pay:</span><span id="recBase">-</span></div>
+                <div class="receipt-row"><span>Adjustment:</span><span id="recAdj">-</span></div>
+                <div class="receipt-row total-row"><span>Net Payable:</span><span id="recNet" style="color: var(--primary-dark); font-size: 1.1rem;">-</span></div>
+                
+                <div class="qr-box">
+                    <p style="font-size: 0.75rem; margin-bottom: 5px;">Scan & Pay via BHIM UPI</p>
+                    <img id="upiQrImg" src="" alt="UPI QR">
+                    <p style="font-size: 0.75rem; font-weight: bold; margin-top: 5px;" id="recUpiId">7989057190@upi</p>
+                </div>
+            </div>
+            <button class="btn" style="margin-top: 15px; background: var(--secondary);" onclick="downloadReceiptImage()">Download Slip as Image</button>
+        </div>
+    </div>
+
+    <!-- TAB 2: STAFF DIRECTORY -->
+    <div id="staff" class="tab-content">
+        <div class="admin-actions" id="staffAdminWarning" style="display:none;">
+            🔒 Master Mode Active: You can add or modify staff records.
+        </div>
+        <div class="form-group">
+            <label>Staff Full Name</label>
+            <input type="text" id="newStaffName" placeholder="e.g., Laxmi Bai">
+        </div>
+        <div class="form-group">
+            <label>Role / Job Type</label>
+            <select id="newStaffRole">
+                <option value="Maid / Househelp">Maid / Househelp</option>
+                <option value="Cook">Cook</option>
+                <option value="Driver">Driver</option>
+                <option value="Car Cleaner">Car Cleaner</option>
+                <option value="Security / Other">Security / Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Phone Number</label>
+            <input type="text" id="newStaffPhone" placeholder="10-digit mobile number">
+        </div>
+        <div class="form-group">
+            <label>Monthly Salary Agreed (₹)</label>
+            <input type="number" id="newStaffSalary" placeholder="e.g., 5000">
+        </div>
+        <button class="btn" onclick="addNewStaff()">Add Staff Member</button>
+
+        <hr style="margin: 20px 0; border:0; border-top:1px solid #e2e8f0;">
+        <h3 style="font-size: 1rem; margin-bottom: 10px;">Registered Staff List</h3>
+        <div id="staffListContainer">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- TAB 3: SOCIETY LEDGER -->
+    <div id="society" class="tab-content">
+        <h3 style="font-size: 1rem; margin-bottom: 10px;">Payment Ledger History</h3>
+        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 15px;">All generated and recorded salary disbursements.</p>
+        <div id="ledgerContainer">
+            <p style="font-size: 0.85rem; color: #64748b; text-align: center; padding: 20px;">No payout records logged yet.</p>
+        </div>
+        <button class="btn" style="background: var(--danger); margin-top: 15px;" onclick="clearLedger()">Clear Ledger History</button>
+    </div>
+
+    <!-- TAB 4: ADMIN -->
+    <div id="admin" class="tab-content">
+        <div class="form-group">
+            <label>Enter Master Passcode</label>
+            <input type="password" id="passcodeInput" placeholder="Enter key to unlock admin privileges">
+        </div>
+        <button class="btn" onclick="verifyAdminPasscode()">Unlock Admin Mode</button>
+        <p id="adminStatusText" style="margin-top: 10px; font-size: 0.85rem; font-weight: 600; text-align: center;"></p>
+    </div>
+</div>
+
+<script>
+    let staffData = JSON.parse(localStorage.getItem('helppay_staff')) || [
+        { id: 1, name: "Laxmi Bai", role: "Maid / Househelp", phone: "9876543210", salary: 4500, active: true },
+        { id: 2, name: "Ramesh Kumar", role: "Driver", phone: "9123456789", salary: 15000, active: true }
+    ];
+
+    let ledgerData = JSON.parse(localStorage.getItem('helppay_ledger')) || [];
+    let isAdminUnlocked = false;
+    const masterUpi = "7989057190@upi";
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+        if(tabId === 'payroll') populateStaffDropdown();
+        if(tabId === 'staff') renderStaffList();
+        if(tabId === 'society') renderLedger();
+    }
+
+    function populateStaffDropdown() {
+        const select = document.getElementById('payStaffSelect');
+        select.innerHTML = '<option value="">-- Choose Staff --</option>';
+        staffData.filter(s => s.active).forEach(s => {
+            select.innerHTML += `<option value="${s.id}">${s.name} (${s.role})</option>`;
+        });
+    }
+
+    function loadStaffPayrollDetails() {
+        const staffId = document.getElementById('payStaffSelect').value;
+        if(!staffId) return;
+        const staff = staffData.find(s => s.id == staffId);
+        if(staff) {
+            document.getElementById('baseSalary').value = staff.salary;
+            calculateNetPay();
+        }
+    }
+
+    function calculateNetPay() {
+        const base = parseFloat(document.getElementById('baseSalary').value) || 0;
+        const totalDays = parseFloat(document.getElementById('totalDays').value) || 30;
+        const workedDays = parseFloat(document.getElementById('daysWorked').value) || 30;
+        const adj = parseFloat(document.getElementById('bonusAdj').value) || 0;
+
+        let perDay = base / totalDays;
+        let earned = (perDay * workedDays) + adj;
+        return Math.round(earned > 0 ? earned : 0);
+    }
+
+    function generateReceipt() {
+        const staffId = document.getElementById('payStaffSelect').value;
+        if(!staffId) { alert("Please select a staff member."); return; }
+
+        const staff = staffData.find(s => s.id == staffId);
+        const month = document.getElementById('payMonth').value;
+        const totalDays = document.getElementById('totalDays').value;
+        const workedDays = document.getElementById('daysWorked').value;
+        const base = document.getElementById('baseSalary').value;
+        const adj = document.getElementById('bonusAdj').value;
+        const netPay = calculateNetPay();
+
+        document.getElementById('recSociety').innerText = "Gated Community, Hyderabad";
+        document.getElementById('recDateRange').innerText = "Payroll Period: " + month;
+        document.getElementById('recName').innerText = staff.name;
+        document.getElementById('recRole').innerText = staff.role;
+        document.getElementById('recPhone').innerText = staff.phone;
+        document.getElementById('recAttendance').innerText = `${workedDays} / ${totalDays} Days`;
+        document.getElementById('recBase').innerText = `₹${base}`;
+        document.getElementById('recAdj').innerText = `₹${adj}`;
+        document.getElementById('recNet').innerText = `₹${netPay}`;
+        document.getElementById('recUpiId').innerText = masterUpi;
+
+        // Generate UPI QR Code URL via public API
+        let upiString = `upi://pay?pa=${masterUpi}&pn=${encodeURIComponent(staff.name)}&am=${netPay}&cu=INR`;
+        document.getElementById('upiQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
+
+        document.getElementById('receiptContainer').style.display = 'block';
+
+        // Log to ledger
+        ledgerData.unshift({
+            date: new Date().toLocaleDateString(),
+            staffName: staff.name,
+            role: staff.role,
+            period: month,
+            amount: netPay
+        });
+        localStorage.setItem('helppay_ledger', JSON.stringify(ledgerData));
+    }
+
+    function downloadReceiptImage() {
+        const element = document.getElementById('captureReceipt');
+        html2canvas(element).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'HelpPay_Salary_Slip.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    }
+
+    function addNewStaff() {
+        if(!isAdminUnlocked) { alert("Please unlock Admin mode first using passcode KIRAN2026"); return; }
+        const name = document.getElementById('newStaffName').value;
+        const role = document.getElementById('newStaffRole').value;
+        const phone = document.getElementById('newStaffPhone').value;
+        const salary = parseFloat(document.getElementById('newStaffSalary').value);
+
+        if(!name || !phone || isNaN(salary)) { alert("Please fill in all staff details correctly."); return; }
+
+        staffData.push({ id: Date.now(), name, role, phone, salary, active: true });
+        localStorage.setItem('helppay_staff', JSON.stringify(staffData));
+        alert("Staff member added successfully!");
+        document.getElementById('newStaffName').value = '';
+        document.getElementById('newStaffPhone').value = '';
+        document.getElementById('newStaffSalary').value = '';
+        renderStaffList();
+    }
+
+    function renderStaffList() {
+        const container = document.getElementById('staffListContainer');
+        container.innerHTML = '';
+        if(staffData.length === 0) {
+            container.innerHTML = '<p style="font-size:0.85rem; color:#64748b;">No staff registered.</p>';
+            return;
+        }
+        staffData.forEach(s => {
+            container.innerHTML += `
+                <div class="staff-card">
+                    <div class="staff-info">
+                        <h4>${s.name} <span class="badge ${s.active ? 'badge-active' : 'badge-inactive'}">${s.active ? 'Active' : 'Inactive'}</span></h4>
+                        <p>${s.role} | Ph: ${s.phone}</p>
+                        <p style="font-weight:600; color:var(--primary-dark);">Base Salary: ₹${s.salary}</p>
+                    </div>
+                    ${isAdminUnlocked ? `<button onclick="toggleStaff(${s.id})" style="padding:6px 10px; font-size:0.75rem; background:#cbd5e1; border:none; border-radius:4px; cursor:pointer;">Toggle</button>` : ''}
+                </div>`;
+        });
+    }
+
+    function toggleStaff(id) {
+        const staff = staffData.find(s => s.id == id);
+        if(staff) {
+            staff.active = !staff.active;
+            localStorage.setItem('helppay_staff', JSON.stringify(staffData));
+            renderStaffList();
+        }
+    }
+
+    function renderLedger() {
+        const container = document.getElementById('ledgerContainer');
+        if(ledgerData.length === 0) {
+            container.innerHTML = '<p style="font-size: 0.85rem; color: #64748b; text-align: center; padding: 20px;">No payout records logged yet.</p>';
+            return;
+        }
+        container.innerHTML = '';
+        ledgerData.forEach(item => {
+            container.innerHTML += `
+                <div class="staff-card">
+                    <div class="staff-info">
+                        <h4>${item.staffName} (${item.role})</h4>
+                        <p>Period: ${item.period} | Paid on: ${item.date}</p>
+                    </div>
+                    <div style="font-weight: bold; color: var(--primary-dark);">₹${item.amount}</div>
+                </div>`;
+        });
+    }
+
+    function clearLedger() {
+        if(!isAdminUnlocked) { alert("Admin unlock required."); return; }
+        if(confirm("Clear all ledger history?")) {
+            ledgerData = [];
+            localStorage.removeItem('helppay_ledger');
+            renderLedger();
+        }
+    }
+
+    function verifyAdminPasscode() {
+        const code = document.getElementById('passcodeInput').value;
+        if(code === "KIRAN2026") {
+            isAdminUnlocked = true;
+            document.getElementById('adminStatusText').style.color = "var(--primary-dark)";
+            document.getElementById('adminStatusText').innerText = "Admin Unlocked Successfully!";
+            document.getElementById('staffAdminWarning').style.display = 'block';
+            renderStaffList();
+        } else {
+            document.getElementById('adminStatusText').style.color = "var(--danger)";
+            document.getElementById('adminStatusText').innerText = "Incorrect Master Passcode!";
+        }
+    }
+
+    window.onload = function() {
+        populateStaffDropdown();
+    };
+</script>
+
+</body>
+</html>
